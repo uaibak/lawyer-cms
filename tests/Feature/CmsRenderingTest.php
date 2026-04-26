@@ -63,4 +63,44 @@ class CmsRenderingTest extends TestCase
             'slug' => 'about-us',
         ]);
     }
+
+    public function test_admin_can_create_section_from_structured_fields(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+        ]);
+
+        $page = Page::create([
+            'title' => 'Home',
+            'slug' => 'home',
+            'meta_title' => 'Home',
+            'meta_description' => 'Homepage',
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.pages.sections.store', $page), [
+            'type' => 'services',
+            'sort_order' => 1,
+            'content_fields' => [
+                'title' => 'Practice Areas',
+                'items' => [
+                    [
+                        'title' => 'Family Law',
+                        'description' => 'Support for custody and divorce matters.',
+                    ],
+                    [
+                        'title' => 'Criminal Defense',
+                        'description' => 'Representation from investigation through trial.',
+                    ],
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect(route('admin.pages.edit', $page));
+
+        $section = Section::query()->where('page_id', $page->id)->firstOrFail();
+
+        $this->assertSame('services', $section->type);
+        $this->assertSame('Practice Areas', $section->contentData()['title']);
+        $this->assertCount(2, $section->contentData()['items']);
+    }
 }
